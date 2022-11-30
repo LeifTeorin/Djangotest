@@ -5,6 +5,11 @@ from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.views import generic
 from django.utils import timezone
+from rest_framework import viewsets
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+from rest_framework import status
+from .serializers import *
 
 from .models import Question, Choice
 
@@ -22,6 +27,28 @@ class IndexView(generic.ListView):
         return Question.objects.filter(
             pub_date__lte=timezone.now()
         ).order_by('-pub_date')[:5]
+
+@api_view(['GET', 'POST'])
+def question_list(request):
+    if request.method == 'GET':
+        data = Question.objects.all()
+
+        serializer = QuestionSerializer(data, context={'request': request}, many=True)
+
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = QuestionSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class QuestionView(viewsets.ModelViewSet):
+    serializer_class = QuestionSerializer
+    queryset = Question.objects.all()
 
 class DetailView(generic.DetailView):
     model = Question
@@ -55,7 +82,23 @@ def vote(request, question_id):
         # user hits the Back button.
         return HttpResponseRedirect(reverse('polls:results', args=(question.id,)))
 
+@api_view(['PUT', 'DELETE'])
+def question_detail(request, pk):
+    try:
+        question = Question.objects.get(pk=pk)
+    except Question.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
 
+    if request.method == 'PUT':
+        serializer = QuestionSerializer(question, data=request.data,context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        question.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 """ def index(request):
     latest_question_list = Question.objects.order_by('-pub_date')[:5]

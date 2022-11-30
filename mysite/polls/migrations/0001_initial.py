@@ -2,6 +2,11 @@
 
 from django.db import migrations, models
 import django.db.models.deletion
+from datetime import date
+
+def create_data(apps, schema_editor):
+    Question = apps.get_model('polls', 'Question')
+    Question(question_text="Joe Silver", pub_date=date.today()).save()
 
 
 class Migration(migrations.Migration):
@@ -12,6 +17,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(create_data),
         migrations.CreateModel(
             name='Question',
             fields=[
